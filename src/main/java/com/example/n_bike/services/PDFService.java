@@ -13,11 +13,13 @@ import java.util.List;
 @Service
 public class PDFService {
 
+    private final String resourcesImg = "src/main/resources/n-bike-logo.png";
+
     public void createSalesOrderConfirmation(Document document, CreateOrderCommand command, List<BikeOrderCommand> bikeOrderCommands) throws DocumentException, IOException {
 
         document.open();
         PDFUtils.addEmptyLine(document, 1);
-        PDFUtils.addPicture(document, "https://i.postimg.cc/qqCChfDp/Capture-d-cran-2024-12-26-155809.png", 150, 150, 20f, 775f);
+        PDFUtils.addPicture(document, resourcesImg, 150, 150, 20f, 775f);
         PDFUtils.addContactDetails(document, command);
         PDFUtils.addTitlePage(document, "Confirmation de commande - " + command.getOrderNumber());
         PDFUtils.addText(document, "Merci pour votre commande ! Ci-dessous vous trouverer le résumé de celle-ci :");
@@ -31,7 +33,7 @@ public class PDFService {
     public void createPurchaseOrderConfirmation(Document document, List<BikeOrderCommand> bikeOrderCommand, String orderNumber) throws DocumentException, IOException {
         document.open();
         PDFUtils.addEmptyLine(document, 1);
-        PDFUtils.addPicture(document, "https://i.postimg.cc/qqCChfDp/Capture-d-cran-2024-12-26-155809.png", 150, 150, 20f, 775f);
+        PDFUtils.addPicture(document, resourcesImg, 150, 150, 20f, 775f);
         PDFUtils.addTitlePage(document, "Nouvelle commande - " + orderNumber);
         PDFUtils.addText(document, "Ci-dessous vous trouverer le résumé de celle-ci :");
         PDFUtils.addPurchaseItems(document, bikeOrderCommand);
