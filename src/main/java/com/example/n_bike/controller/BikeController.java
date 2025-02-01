@@ -55,8 +55,4 @@ public class BikeController {
         return bikeService.getBikeSizeByModel(bikeId);
     }
 
-    @PostMapping("createSalesOrder")
-    public void createOrder(@RequestBody CreateOrderCommand command) throws DocumentException, IOException {
-        bikeService.createSalesOrder(command);
-    }
 }

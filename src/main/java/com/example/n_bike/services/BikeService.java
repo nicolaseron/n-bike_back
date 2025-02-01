@@ -28,15 +28,13 @@ public class BikeService {
     private final PDFService pdfService;
     private final JavaSmtpGmailSenderService senderService;
     private final PendingOrderRepository pendingOrderRepository;
-    private final BrandsRepository brandsRepository;
 
-    public BikeService(BikeRepository bikeRepository, CategoriesService categoryService, PDFService pdfService, JavaSmtpGmailSenderService senderService, PendingOrderRepository pendingOrderRepository, BrandsRepository brandsRepository) {
+    public BikeService(BikeRepository bikeRepository, CategoriesService categoryService, PDFService pdfService, JavaSmtpGmailSenderService senderService, PendingOrderRepository pendingOrderRepository) {
         this.bikeRepository = bikeRepository;
         this.categoryService = categoryService;
         this.pdfService = pdfService;
         this.senderService = senderService;
         this.pendingOrderRepository = pendingOrderRepository;
-        this.brandsRepository = brandsRepository;
     }
 
     public List<Bikes> getAllBike() {
@@ -150,76 +148,11 @@ public class BikeService {
         return bikeList.stream().map(BikeMapper::toDto).collect(Collectors.toList());
     }
 
-
-    public void createSalesOrder(CreateOrderCommand command) throws DocumentException, IOException {
-        List<BikeOrderCommand> bikeOrders = new ArrayList<>();
-        Set<Brands> brandsSet = new HashSet<>();
-        for (ItemsOrderCommand item : command.getItems()) {
-            Bikes bike = this.getBikeById(item.getBikeId());
-            BikeOrderCommand bikeOrder = new BikeOrderCommand(bike, item.getQuantity());
-            bikeOrders.add(bikeOrder);
-            int newQuantity = bike.getStock() - item.getQuantity();
-            bike.setStock(newQuantity);
-            bikeRepository.save(bike);
-            if (newQuantity < bike.getStock_mini()) {
-                PendingOrder pendingOrder = pendingOrderRepository.findByBike(bike);
-
-                if (pendingOrder != null) {
-                    pendingOrder.setQuantity(pendingOrder.getQuantity() + item.getQuantity());
-                } else {
-                    this.createPendingOrder(bike, item.getQuantity());
-                }
-                brandsSet.add(bike.getBrand());
-            }
-        }
-        this.sendPDFMail(command, bikeOrders);
-        this.createPurchaseOrder(brandsSet);
-    }
-
-    public void sendPDFMail(CreateOrderCommand command, List<BikeOrderCommand> bikeOrders) throws DocumentException, IOException {
-        Document document = CreateFile.createPDF("sales_order_confirmation", command.getOrderNumber());
-        pdfService.createSalesOrderConfirmation(document, command, bikeOrders);
-        String bodyText = """
-                Bonjour,
-
-                Merci pour votre commande ! Vous trouverez en pièce jointe la confirmation de votre achat.
-
-                Pour toute question, n'hésitez pas à nous contacter à l'adresse info@n-bike.be.
-
-                Cordialement,
-
-                L'équipe N-Bike.
-                """;
-
-        senderService.sendEmail(command.getEmail(), "Confirmation de commande " + command.getOrderNumber(), bodyText, "sales_order_confirmation/" + command.getOrderNumber() + ".pdf");
-    }
-
     public void createPendingOrder(Bikes bike, int quantity) {
         PendingOrder newPending = new PendingOrder();
         newPending.setBike(bike);
         newPending.setQuantity(quantity);
         newPending.setBrands(bike.getBrand());
         pendingOrderRepository.save(newPending);
-    }
-
-    public void createPurchaseOrder(Set<Brands> brandsSet) throws DocumentException, IOException {
-
-        for (Brands brand : brandsSet) {
-            List<PendingOrder> pendingOrdersByBrands = pendingOrderRepository.findAllByBrands(brand);
-            double totalPrice = 0;
-            List<BikeOrderCommand> bikesOrdersOfCurrentBrands = new ArrayList<>();
-
-            for (PendingOrder pendingOrder : pendingOrdersByBrands) {
-                totalPrice += pendingOrder.getBike().getPurchase_price() * pendingOrder.getQuantity();
-                bikesOrdersOfCurrentBrands.add(new BikeOrderCommand(pendingOrder.getBike(), pendingOrder.getQuantity()));
-            }
-
-            if (totalPrice >= brand.getMinimumOrderPrice() && !pendingOrdersByBrands.isEmpty()) {
-                String orderNumber = "CMD" + UUID.randomUUID();
-                Document document = CreateFile.createPDF("purchase_order_confirmation", orderNumber);
-                pdfService.createPurchaseOrderConfirmation(document, bikesOrdersOfCurrentBrands, orderNumber);
-                pendingOrderRepository.deleteAllByBrands(brand);
-            }
-        }
     }
 }
